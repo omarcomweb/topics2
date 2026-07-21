@@ -125,13 +125,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1784660219011">
-    <meta name="theme-color" content="#9473bf">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784660219011">
+    <link rel="manifest" href="./manifest.json?v=v1784661042428">
+    <meta name="theme-color" content="#a68ca2">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784661042428">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1784660219011')
+          navigator.serviceWorker.register('./sw.js?v=v1784661042428')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -620,7 +620,8 @@
         // --- رسالة الترحيب والشاشة ---
         function welcomeScreen() {
             activeCatIndex = -1; activeQIndex = -1;
-            currentQuestionText = "أهلاً بيك يا هندسة! 🌙 اختار قسم أو دوس سؤال عشوائي.";
+            // التعديل الجديد: إزالة "يا هندسة!" من رسالة الترحيب
+            currentQuestionText = "أهلاً بيك! 🌙 اختار قسم أو دوس سؤال عشوائي.";
             currentCategoryName = "توجيهات";
             document.getElementById('main-question').innerText = currentQuestionText;
             document.getElementById('current-question-category').innerText = "القسم: ترحيب";
