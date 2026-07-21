@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نقاشات - My PWA App</title>
+    
+    <!-- مكتبات Firebase الأساسية -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+    
+    <!-- سكريبت حي لحفظ الداتا والتصميم للـ Inspect -->
+    <script id="live-db-state" type="application/json">{}</script>
+
+    <style id="dynamic-css-layouts">
+        /* هيتم توليد الـ 50 تصميم CSS مختلفين هيكلياً هنا */
+    </style>
+
+    <style>
+        /* ================= الأساسيات الثابتة ================= */
+        :root {
+            --bg-dark: #070913; --card-bg: #111827; --modal-bg: #1e293b;
+            --text-main: #f8fafc; --text-muted: #94a3b8; --border-color: #334155;
+            --btn-purple: #8b5cf6; --btn-teal: #14b8a6; --btn-blue: #3b82f6;
+            --btn-darkblue: #1e3a8a; --btn-green: #10b981; --btn-orange: #f59e0b; --btn-red: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; transition: all 0.3s ease; }
+
+        body { background-color: var(--bg-dark); color: var(--text-main); display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-x: hidden; }
+
+        /* ================= الهيدر والقوائم ================= */
+        header {
+            width: 100%; padding: 15px; display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; z-index: 100;
+        }
+        
+        select {
+            background-color: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color);
+            padding: 8px 12px; border-radius: 8px; outline: none; cursor: pointer; font-weight: bold;
+        }
+
+        .server-status { text-align: center; margin-top: 15px; width: 100%; }
+        .server-status h2 { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.5rem; color: var(--btn-blue); }
+        .question-count {
+            border: 1px solid var(--border-color); border-radius: 20px; padding: 5px 15px; font-size: 0.9rem;
+            display: inline-block; margin-top: 10px; color: var(--text-main); background-color: var(--card-bg); font-weight: bold;
+        }
+
+        /* ================= حاوية التطبيق (عشان الزووم الاحترافي) ================= */
+        #app-container {
+            width: 100%; max-width: 700px; display: flex; flex-direction: column; align-items: center;
+            transform-origin: top center; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            padding: 0 15px; margin-top: 20px; margin-bottom: 50px;
+        }
+
+        /* ================= كارت السؤال ================= */
+        .question-card {
+            background-color: var(--card-bg); width: 100%; min-height: 200px; padding: 40px 30px;
+            position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; margin-bottom: 20px; overflow: hidden;
+        }
+        .quote-marks { position: absolute; font-size: 6rem; color: rgba(150, 150, 150, 0.05); font-family: serif; pointer-events: none;}
+        .quote-marks.right { top: -20px; right: 20px; } .quote-marks.left { bottom: -40px; left: 20px; }
+
+        #main-question { font-size: 1.5rem; line-height: 1.6; font-weight: bold; z-index: 1; margin-bottom: 10px; color: var(--text-main); }
+        .category-badge { background-color: var(--btn-blue); padding: 5px 15px; font-size: 0.8rem; z-index: 1; color: #ffffff; font-weight: bold;}
+
+        /* نظام التقييم بـ 7 نجوم */
+        .star-rating-container { display: none; gap: 5px; margin-top: 15px; z-index: 2; direction: ltr; }
+        .star-btn { font-size: 2.2rem; cursor: pointer; color: var(--border-color); transition: color 0.2s, transform 0.1s; user-select: none; }
+        .star-btn:active { transform: scale(0.8); }
+
+        /* ================= الأزرار الرئيسية ================= */
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; width: 100%; margin-bottom: 10px; }
+        .full-width-btn { width: 100%; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+        button { border: none; padding: 15px; color: white; font-weight: bold; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        
+        /* ألوان الأزرار الأساسية */
+        .btn-purple { background-color: var(--btn-purple); } .btn-teal { background-color: var(--btn-teal); }
+        .btn-blue { background-color: var(--btn-blue); } .btn-darkblue { background-color: var(--btn-darkblue); }
+        .btn-green { background-color: var(--btn-green); } .btn-orange { background-color: var(--btn-orange); color: #000; }
+        .btn-red { background-color: var(--btn-red); }
+        
+        .row-btns { display: flex; gap: 10px; width: 100%; margin-bottom: 10px;}
+        .row-btns > button { flex: 1; }
+        .icon-btn { width: 50px; height: 50px; padding: 0; flex: none !important;}
+
+        /* ================= أزرار الزووم الجديدة (الاحترافية) ================= */
+        .zoom-controls-row {
+            display: flex; justify-content: center; align-items: center; gap: 10px; width: 100%;
+            margin-top: 15px; padding: 15px; background-color: var(--card-bg); border-radius: 15px;
+            border: 1px dashed var(--border-color);
+        }
+        .zoom-controls-row button {
+            background-color: var(--btn-blue); padding: 10px 20px; font-size: 1.2rem;
+            border-radius: 8px; flex: 1;
+        }
+        .zoom-controls-row .zoom-reset { flex: 2; background-color: var(--btn-darkblue); font-size: 1rem; }
+
+        /* ================= النوافذ المنبثقة (Modals) ================= */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal-content { background-color: var(--modal-bg); border: 1px solid var(--border-color); width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; padding: 20px; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; }
+        .admin-section { border-bottom: 1px dashed var(--border-color); padding: 20px 0; display: flex; flex-direction: column; gap: 10px; }
+        .admin-section h3 { text-align: center; margin-bottom: 10px; font-size: 1rem; color: var(--text-main); }
+        .admin-input { background-color: var(--card-bg); border: 1px solid var(--border-color); color: var(--text-main); padding: 12px; width: 100%; outline: none; }
+        textarea.admin-input { min-height: 120px; resize: vertical; font-family: monospace; direction: ltr; text-align: left; }
+        .close-modal { background: none; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer; padding: 0; }
+
+        .history-item { background-color: var(--card-bg); padding: 10px; margin-bottom: 10px; border-right: 4px solid var(--btn-blue); }
+        .history-cat { font-size: 0.75rem; color: var(--btn-teal); margin-bottom: 5px; }
+
+        .custom-draw-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding-right: 5px;}
+        .custom-draw-item { display: flex; align-items: center; gap: 10px; background-color: var(--card-bg); padding: 10px; cursor: pointer;}
+        .custom-draw-item input { width: 20px; height: 20px; }
+
+        .sortable-list { display: flex; flex-direction: column; gap: 5px; }
+        .sortable-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--bg-dark); padding: 10px; border: 1px solid var(--border-color); cursor: grab; }
+        .sortable-item:active { cursor: grabbing; } .sortable-item.dragging { opacity: 0.5; }
+        .danger-text { color: var(--btn-red); text-align: center; }
+
+    </style>
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="manifest" href="./manifest.json?v=v1784659332226">
+    <meta name="theme-color" content="#950797">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784659332226">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js?v=v1784659332226')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Failed', err));
+        });
+      }
+    </script>
+</head>
+<body>
+
+    <!-- الهيدر واختيار الـ 50 ستايل CSS والأقسام -->
+    <header>
+        <select id="css-select" onchange="applySelectedCSS()" title="اختار 1 من 50 تصميم CSS"></select>
+        <select id="header-category-select" onchange="changeActiveCategory()">
+            <option value="all">كل الأقسام</option>
+            <option value="top_rated">⭐ المميزة (أعلى من 5)</option>
+        </select>
+        <div style="font-size: 1.5rem; cursor:pointer;" onclick="checkAdminAuth()" title="الإعدادات">⚙️</div>
+    </header>
+
+    <div class="server-status">
+        <h2 id="current-server-title">☁️ WO (جاري التحميل...)</h2>
+        <!-- العداد اللي بيتغير حسب القسم المحدد -->
+        <div class="question-count" id="total-count-badge">يحتوي على: 0 سؤال</div>
+    </div>
+
+    <!-- حاوية التطبيق الشاملة عشان زووم احترافي حقيقي -->
+    <div id="app-container">
+        
+        <div class="question-card">
+            <span class="quote-marks right">❞</span>
+            <div id="main-question">جاري الاتصال بقاعدة البيانات...</div>
+            <div class="category-badge" id="current-question-category">القسم: جاري التحميل</div>
+            
+            <!-- 7 نجوم التقييم الجداد -->
+            <div class="star-rating-container" id="star-rating-container"></div>
+            
+            <span class="quote-marks left">❝</span>
+        </div>
+
+        <div class="controls-grid">
+            <!-- الزراير معكوسة: قسم حالي يمين، اسمع شمال -->
+            <button class="btn-blue" onclick="nextQuestion(false)">▶️ قسم حالي</button>
+            <button class="btn-teal" onclick="copyQuestion()">📋 نسخ</button>
+            <button class="btn-purple" onclick="speakQuestion()">🔊 اسمع</button>
+        </div>
+
+        <button class="btn-darkblue full-width-btn" onclick="nextQuestion(true)">🌐 سؤال عشوائي من كل الأقسام</button>
+        
+        <div class="row-btns">
+            <!-- الزراير معكوسة: سحب مخصص يمين، سجل الأسئلة شمال -->
+            <button class="btn-darkblue" onclick="openCustomDrawModal()">🔀 سحب مخصص</button>
+            <button class="btn-darkblue icon-btn" onclick="checkAdminAuth()" title="الإعدادات">⚙️</button>
+            <button class="btn-darkblue icon-btn" onclick="openHistoryModal()" title="سجل الأسئلة">🕒</button>
+        </div>
+
+        <button class="btn-green full-width-btn" onclick="resetApp()">🔄 البدء من الأول (تصفير)</button>
+        <button class="btn-orange full-width-btn" onclick="generateAIPrompt()">🪄 توليد أسئلة (AI Prompt)</button>
+
+        <!-- أزرار الزووم -->
+        <div class="zoom-controls-row">
+            <!-- الزراير معكوسة: تكبير يمين، تصغير شمال -->
+            <button onclick="setAppZoom(0.05)" title="تكبير">➕ تكبير</button>
+            <button class="zoom-reset" onclick="resetAppZoom()" id="zoom-percent-text">الرؤية: 100%</button>
+            <button onclick="setAppZoom(-0.05)" title="تصغير">➖ تصغير</button>
+        </div>
+
+    </div> <!-- نهاية app-container -->
+
+    <!-- ================= 1. شاشة التحميل ================= -->
+    <div class="modal-overlay" id="progress-overlay" style="z-index: 9999;">
+        <div class="modal-content" style="text-align: center; max-width: 300px;">
+            <h3 id="progress-title" style="color: var(--text-main);">جاري المعالجة...</h3>
+            <div style="font-size: 3rem; font-weight: bold; color: var(--btn-teal); margin: 20px 0;" id="progress-percent">0%</div>
+            <div style="width: 100%; background-color: var(--border-color); overflow: hidden;">
+                <div id="progress-bar" style="width: 0%; height: 10px; background-color: var(--btn-teal); transition: width 0.1s;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= 2. شاشة باسورد الأدمن ================= -->
+    <div class="modal-overlay" id="authModal" style="z-index: 2000;">
+        <div class="modal-content" style="max-width: 350px;">
+            <h2 style="text-align: center; margin-bottom: 20px;">🔒 تسجيل الدخول</h2>
+            <input type="password" id="admin-pass-input" class="admin-input" placeholder="أدخل كلمة المرور السرية...">
+            <button class="btn-blue full-width-btn" style="margin-top: 15px;" onclick="verifyAdmin()">دخول</button>
+            <button class="close-modal full-width-btn" style="margin-top: 5px; background: var(--border-color); font-size: 1rem; padding: 15px;" onclick="document.getElementById('authModal').style.display='none'">إلغاء</button>
+        </div>
+    </div>
+
+    <!-- ================= 3. شاشة سجل الأسئلة ================= -->
+    <div class="modal-overlay" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close-modal" onclick="document.getElementById('historyModal').style.display='none'">✖</button>
+                <h2>🕒 سجل آخر 50 سؤال</h2>
+                <div></div>
+            </div>
+            <div id="history-list" style="max-height: 60vh; overflow-y: auto;"></div>
+        </div>
+    </div>
+
+    <!-- ================= 4. شاشة السحب المخصص ================= -->
+    <div class="modal-overlay" id="customDrawModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close-modal" onclick="document.getElementById('customDrawModal').style.display='none'">✖</button>
+                <h2>🔀 سحب عشوائي مخصص</h2>
+                <div></div>
+            </div>
+            <p style="text-align: center; margin-bottom: 15px; color: var(--text-muted);">حدد الأقسام اللي حابب تسحب منها الأسئلة بس:</p>
+            <div class="custom-draw-list" id="custom-draw-list"></div>
+            <button class="btn-teal full-width-btn" style="margin-top: 20px;" onclick="executeCustomDraw()">🎲 اسحب دلوقتي!</button>
+        </div>
+    </div>
+
+    <!-- ================= 5. لوحة تحكم الأدمن الشاملة ================= -->
+    <div class="modal-overlay" id="adminModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button class="close-modal" onclick="closeAdminPanel()">✖</button>
+                <h2>⚙️ لوحة تحكم الأدمن</h2>
+                <div></div>
+            </div>
+            
+            <!-- حجم البيانات -->
+            <div class="admin-section" style="background: rgba(0,0,0,0.2); border:none; padding:15px;">
+                <h3 style="color: var(--btn-teal); font-size:1.2rem; margin:0;" id="data-size-display">📊 مساحة البيانات: جاري الحساب...</h3>
+            </div>
+
+            <!-- إعدادات السيرفر والفايربيز الذكية -->
+            <div class="admin-section">
+                <h3>🔗 إعدادات السيرفر النشط (Firebase)</h3>
+                <select class="admin-input" id="server-select">
+                    <!-- هيتم تعبئتها ديناميكياً -->
+                </select>
+                <textarea id="firebase-url-input" class="admin-input" placeholder="ضع كود Firebase Config هنا..." style="margin-top:10px;"></textarea>
+                <button class="btn-blue" style="margin-top: 10px;" onclick="saveAndSwitchFirebase()">💾 حفظ وإضافة السيرفر للقائمة</button>
+            </div>
+
+            <!-- إضافة قسم + باسورد اختياري -->
+            <div class="admin-section">
+                <h3>إضافة قسم جديد</h3>
+                <input type="text" id="new-cat-name" class="admin-input" placeholder="اسم القسم الجديد">
+                <input type="password" id="new-cat-pass" class="admin-input" placeholder="كلمة مرور للقسم (اختياري لقفله)" style="margin-top:5px;">
+                <textarea id="new-cat-questions" class="admin-input" placeholder='اكتب الأسئلة هنا (سطر بسطر)' style="min-height: 80px; margin-top:5px;"></textarea>
+                <button class="btn-teal" style="margin-top:5px;" onclick="addNewCategory()">☁️ رفع قسم جديد للسيرفر</button>
+            </div>
+
+            <!-- تعديل اسم / دمج -->
+            <div class="admin-section">
+                <h3>تعديل الأقسام</h3>
+                <select id="edit-cat-select" class="admin-input"></select>
+                <input type="text" id="rename-cat-newname" class="admin-input" placeholder="تغيير الاسم إلى..." style="margin-top:5px;">
+                <button class="btn-blue" onclick="renameCategory()">✏️ حفظ الاسم الجديد</button>
+                
+                <textarea id="append-cat-questions" class="admin-input" placeholder='اكتب أسئلة إضافية لدمجها...' style="margin-top:10px; min-height: 80px;"></textarea>
+                <button class="btn-purple" onclick="appendQuestions()">➕ دمج الأسئلة للقسم</button>
+            </div>
+
+            <!-- استيراد / تصدير / ترتيب / حذف -->
+            <div class="admin-section">
+                <h3>🔄 إدارة متقدمة</h3>
+                <div style="display: flex; gap: 10px;">
+                    <!-- تم عكس الزراير هنا برضه للتناسق -->
+                    <button class="btn-orange" style="flex:1;" onclick="document.getElementById('import-file').click()">📤 استيراد JSON</button>
+                    <button class="btn-green" style="flex:1;" onclick="exportData()">📥 تصدير JSON</button>
+                    <input type="file" id="import-file" style="display:none" accept=".json" onchange="importData(event)">
+                </div>
+                
+                <button class="btn-purple full-width-btn" style="margin-top:15px; background-color: #6366f1;" onclick="exportFullAppHTML()">💾 تصدير التطبيق بالكامل (HTML Standalone)</button>
+
+                <h4 style="margin-top: 15px; color:var(--btn-teal);">↕️ إعادة ترتيب الأقسام (اسحب وأفلت)</h4>
+                <div class="sortable-list" id="sortable-list"></div>
+                <button class="btn-blue" onclick="saveCategoryOrder()">💾 حفظ الترتيب</button>
+
+                <h4 class="danger-text" style="margin-top: 15px;">🗑️ حذف أقسام</h4>
+                <div class="sortable-list" id="delete-list"></div>
+                <button class="btn-red" onclick="deleteSelectedCategories()">🗑️ حذف المحدد</button>
+                <button class="btn-red" style="background-color: #991b1b; margin-top:10px;" onclick="deleteAllData()">💣 مسح السيرفر بالكامل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= الجافاسكريبت الشامل ================= -->
+    <script>
+        // --- 1. حالة التطبيق والمحركات ---
+        let db = []; 
+        
+        // ربط السجل بالذاكرة المحلية لآخر 50 بجد
+        let historyDb = JSON.parse(localStorage.getItem('my_pwa_history_db') || '[]'); 
+        
+        // ذاكرة منع التكرار لمدة 24 ساعة
+        let cooldownDb = JSON.parse(localStorage.getItem('my_pwa_cooldown_db') || '{}');
+        
+        let currentQuestionText = "";
+        let currentCategoryName = "";
+        
+        // مؤشرات لحفظ التقييم
+        let activeCatIndex = -1;
+        let activeQIndex = -1;
+
+        let unlockedCats = {}; // الأقسام المفتوحة بباسورد
+        
+        let currentCSSId = localStorage.getItem('my_pwa_css') || 'css_0';
+        let appZoomScale = parseFloat(localStorage.getItem('my_pwa_app_zoom')) || 1.0; 
+        let activeServerKey = localStorage.getItem('active_server_key') || 'my_pwa_server_data_main'; 
+        
+        let savedFirebaseServers = JSON.parse(localStorage.getItem('saved_firebase_servers') || '{}');
+        const defaultFirebaseConfig = {
+            apiKey: "AIzaSyB3o3PJ_l6-lBYReKId2FRxmINjjsV3w1M", authDomain: "backkeenddd.firebaseapp.com",
+            databaseURL: "https://backkeenddd-default-rtdb.firebaseio.com", projectId: "backkeenddd",
+            storageBucket: "backkeenddd.firebasestorage.app", messagingSenderId: "909565299323",
+            appId: "1:909565299323:web:a9ede76e82b00a2039b0de", measurementId: "G-QSXVNCH52R"
+        };
+        
+        if(Object.keys(savedFirebaseServers).length === 0) {
+            savedFirebaseServers['firebase_backkeenddd'] = { name: "سيرفر: backkeenddd", configRaw: `const firebaseConfig = { apiKey: "AIzaSyB3o3PJ_l6-lBYReKId2FRxmINjjsV3w1M", authDomain: "backkeenddd.firebaseapp.com", databaseURL: "https://backkeenddd-default-rtdb.firebaseio.com", projectId: "backkeenddd", storageBucket: "backkeenddd.firebasestorage.app", messagingSenderId: "909565299323", appId: "1:909565299323:web:a9ede76e82b00a2039b0de", measurementId: "G-QSXVNCH52R" };`};
+            localStorage.setItem('saved_firebase_servers', JSON.stringify(savedFirebaseServers));
+        }
+
+        const getAdminPass = () => String.fromCharCode(35, 90, 77, 115, 100, 52, 50, 100, 42);
+
+        // --- 2. محرك توليد 50 تصميم CSS ---
+        function generate50CSSLayouts() {
+            const radii = ["0px", "8px", "20px", "35px", "50px"]; 
+            const shadows = [
+                "none", 
+                "0 4px 6px rgba(0,0,0,0.3)", 
+                "5px 5px 0px #000", 
+                "inset 0 4px 8px rgba(0,0,0,0.5)", 
+                "0 0 20px var(--btn-blue)" 
+            ];
+            const borders = ["none", "1px solid var(--border-color)", "2px solid #fff", "3px dashed var(--btn-teal)"];
+            const hues = [0, 30, 60, 120, 180, 210, 270, 300, 330, 20]; 
+            
+            let styleCSS = ""; let selectHTML = ""; let cssCounter = 0;
+
+            for(let i = 0; i < 5; i++) {
+                for(let j = 0; j < 10; j++) {
+                    let id = `css_${cssCounter}`; let hue = hues[j]; let radius = radii[i];
+                    let shadow = shadows[i]; let border = borders[i % 4];
+                    let bg = `hsl(${hue}, 20%, 10%)`; let card = `hsl(${hue}, 25%, 15%)`; let acc = `hsl(${(hue + 45)%360}, 80%, 60%)`;
+                    let layoutName = ["مسطح حاد", "عصري ناعم", "ألعاب 8-bit", "عميق غامض", "نيون دائري"][i];
+                    let colorName = ["أحمر", "برتقالي", "أصفر", "أخضر", "سماوي", "أزرق", "بنفسجي", "وردي", "عنابي", "بني"][j];
+
+                    styleCSS += `
+                    html[data-css="${id}"] {
+                        --bg-dark: ${bg}; --card-bg: ${card}; --modal-bg: ${card};
+                        --btn-purple: ${acc}; --btn-teal: hsl(${(hue+120)%360}, 70%, 50%); --btn-blue: hsl(${(hue+180)%360}, 70%, 50%);
+                        --border-color: hsl(${hue}, 30%, 25%);
+                    }
+                    html[data-css="${id}"] .question-card, html[data-css="${id}"] button, html[data-css="${id}"] select, html[data-css="${id}"] .admin-input, html[data-css="${id}"] .modal-content, html[data-css="${id}"] .question-count, html[data-css="${id}"] .zoom-controls-row {
+                        border-radius: ${radius} !important; box-shadow: ${shadow} !important; border: ${border} !important;
+                    }
+                    html[data-css="${id}"] .category-badge { border-radius: ${radius} !important; }
+                    `;
+                    selectHTML += `<option value="${id}">${layoutName} - ${colorName}</option>`;
+                    cssCounter++;
+                }
+            }
+            
+            document.getElementById('dynamic-css-layouts').innerHTML = styleCSS;
+            document.getElementById('css-select').innerHTML = selectHTML;
+            document.getElementById('css-select').value = currentCSSId;
+            document.documentElement.setAttribute('data-css', currentCSSId);
+        }
+
+        function applySelectedCSS() {
+            currentCSSId = document.getElementById('css-select').value;
+            document.documentElement.setAttribute('data-css', currentCSSId);
+            localStorage.setItem('my_pwa_css', currentCSSId);
+            updateLiveInspectState();
+        }
+
+        // --- 3. التهيئة والتحميل ---
+        document.addEventListener('DOMContentLoaded', () => {
+            generate50CSSLayouts();
+            applyAppZoom(); 
+
+            const injectedDataRaw = document.getElementById('live-db-state').textContent;
+            try {
+                const injectedData = JSON.parse(injectedDataRaw);
+                if (injectedData.db && injectedData.db.length > 0 && db.length === 0) {
+                    db = injectedData.db; activeServerKey = injectedData.server || 'my_pwa_server_data_main';
+                    if (injectedData.css) { currentCSSId = injectedData.css; document.getElementById('css-select').value = currentCSSId; document.documentElement.setAttribute('data-css', currentCSSId); }
+                    saveToStorage(); 
+                }
+            } catch(e) {}
+
+            populateServerDropdown();
+            document.getElementById('server-select').value = activeServerKey;
+            if(activeServerKey.startsWith('firebase_') && savedFirebaseServers[activeServerKey]) {
+                document.getElementById('firebase-url-input').value = savedFirebaseServers[activeServerKey].configRaw;
+            }
+            loadFromStorage();
+        });
+
+        function populateServerDropdown() {
+            const sel = document.getElementById('server-select');
+            sel.innerHTML = `<option value="my_pwa_server_data_main">المحلي الأساسي (Local 1)</option><option value="my_pwa_server_data_backup">المحلي الاحتياطي (Local 2)</option>`;
+            for(let key in savedFirebaseServers) { sel.innerHTML += `<option value="${key}">☁️ ${savedFirebaseServers[key].name}</option>`; }
+        }
+
+        function updateLiveInspectState() {
+            const liveTag = document.getElementById('live-db-state');
+            if(liveTag) liveTag.textContent = JSON.stringify({ db: db, css: currentCSSId, server: activeServerKey });
+        }
+
+        function updateDataSizeDisplay() {
+            const sizeBytes = new Blob([JSON.stringify(db)]).size;
+            document.getElementById('data-size-display').innerText = `📊 مساحة البيانات: ${(sizeBytes >= 1048576) ? (sizeBytes / 1048576).toFixed(2) + ' MB' : (sizeBytes / 1024).toFixed(2) + ' KB'}`;
+        }
+
+        function checkAdminAuth() {
+            if (sessionStorage.getItem('adminUnlocked') === 'true') { updateDataSizeDisplay(); document.getElementById('adminModal').style.display = 'flex'; }
+            else { document.getElementById('admin-pass-input').value = ''; document.getElementById('authModal').style.display = 'flex'; }
+        }
+        function verifyAdmin() {
+            if (document.getElementById('admin-pass-input').value === getAdminPass()) {
+                sessionStorage.setItem('adminUnlocked', 'true'); document.getElementById('authModal').style.display = 'none';
+                updateDataSizeDisplay(); document.getElementById('adminModal').style.display = 'flex';
+            } else { alert('الباسورد غلط يا غالي! ❌'); }
+        }
+
+        function parseFirebaseConfig(text) {
+            if (!text || text.trim() === "") return null;
+            const config = {};
+            ['apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'].forEach(k => {
+                const match = text.match(new RegExp(k + "\\s*:\\s*['\"]([^'\"]+)['\"]")); if (match) config[k] = match[1];
+            });
+            return Object.keys(config).length >= 4 ? config : null;
+        }
+
+        function saveAndSwitchFirebase() {
+            const rawText = document.getElementById('firebase-url-input').value.trim();
+            const config = parseFirebaseConfig(rawText);
+            if(config && config.projectId) {
+                const key = 'firebase_' + config.projectId;
+                savedFirebaseServers[key] = { name: "سيرفر: " + config.projectId, configRaw: rawText };
+                localStorage.setItem('saved_firebase_servers', JSON.stringify(savedFirebaseServers));
+                populateServerDropdown(); document.getElementById('server-select').value = key;
+                activeServerKey = key; localStorage.setItem('active_server_key', activeServerKey);
+                alert(`تم إضافة ${savedFirebaseServers[key].name} للقائمة وهنتصل بيه حالاً! 🚀`);
+                closeAdminPanel(); loadFromStorage();
+            } else {
+                activeServerKey = document.getElementById('server-select').value;
+                localStorage.setItem('active_server_key', activeServerKey);
+                alert('تم التبديل بنجاح... 🔄'); closeAdminPanel(); loadFromStorage();
+            }
+        }
+
+        function initFirebaseApp(config) {
+            try {
+                if (firebase.apps.length > 0) return firebase.app().delete().then(() => firebase.initializeApp(config));
+                else { firebase.initializeApp(config); return Promise.resolve(); }
+            } catch(e) { return Promise.resolve(); }
+        }
+
+        const IDB_NAME = "MyPWADatabase_V2"; const STORE_NAME = "AppServers";
+        function initIndexedDB() {
+            return new Promise((res, rej) => {
+                const req = indexedDB.open(IDB_NAME, 1);
+                req.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
+                req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+            });
+        }
+
+        async function loadFromStorage() {
+            showProgress("جاري جلب الأسئلة..."); updateProgress(30);
+            try {
+                if (activeServerKey.startsWith('firebase_') && savedFirebaseServers[activeServerKey]) {
+                    document.getElementById('current-server-title').innerText = `☁️ WO (${savedFirebaseServers[activeServerKey].name})`;
+                    const cfg = parseFirebaseConfig(savedFirebaseServers[activeServerKey].configRaw) || defaultFirebaseConfig;
+                    await initFirebaseApp(cfg);
+                    const snap = await firebase.database().ref('categories').once('value');
+                    db = snap.val() || [];
+                } else {
+                    document.getElementById('current-server-title').innerText = activeServerKey.includes('main') ? "☁️ WO (المحلي 1)" : "☁️ WO (المحلي 2)";
+                    const idb = await initIndexedDB();
+                    const req = idb.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(activeServerKey);
+                    db = await new Promise(res => { req.onsuccess = () => res(req.result || []); });
+                }
+                updateProgress(100);
+                setTimeout(() => {
+                    updateAllDropdowns(); updateCategoryCountBadge(); updateLiveInspectState();
+                    welcomeScreen(); hideProgress();
+                }, 300);
+            } catch (e) { alert("خطأ في الاتصال بقاعدة البيانات!"); hideProgress(); }
+        }
+
+        // الحفظ الصامت والسريع للتقييم
+        async function silentSave() {
+            try {
+                if (activeServerKey.startsWith('firebase_')) {
+                    await firebase.database().ref(`categories/${activeCatIndex}/ratings/${activeQIndex}`).set(db[activeCatIndex].ratings[activeQIndex]);
+                } else {
+                    const idb = await initIndexedDB();
+                    const tx = idb.transaction(STORE_NAME, "readwrite");
+                    tx.objectStore(STORE_NAME).put(db, activeServerKey);
+                }
+            } catch(e) {}
+        }
+
+        async function saveToStorage() {
+            showProgress("جاري الحفظ والمسح..."); updateProgress(5);
+            try {
+                if (activeServerKey.startsWith('firebase_')) {
+                    const cfg = parseFirebaseConfig(savedFirebaseServers[activeServerKey].configRaw) || defaultFirebaseConfig;
+                    const dbUrl = cfg.databaseURL;
+                    try {
+                        const res = await fetch(dbUrl + '/categories.json?shallow=true');
+                        const keysObj = await res.json();
+                        if (keysObj && typeof keysObj === 'object') {
+                            const keys = Object.keys(keysObj);
+                            for (let i = 0; i < keys.length; i++) {
+                                await firebase.database().ref(`categories/${keys[i]}`).remove();
+                                updateProgress(5 + Math.round(((i+1)/keys.length) * 10));
+                            }
+                        } else await firebase.database().ref('categories').remove();
+                    } catch(err) { await firebase.database().ref('categories').remove(); }
+
+                    let totalCats = db.length;
+                    if (totalCats === 0) updateProgress(90); 
+                    else {
+                        for (let i = 0; i < totalCats; i++) {
+                            let catRef = firebase.database().ref(`categories/${i}`);
+                            await catRef.child('name').set(db[i].name || "بدون اسم");
+                            await catRef.child('password').set(db[i].password || "");
+                            await catRef.child('ratings').set(db[i].ratings || {}); 
+                            
+                            if (db[i].questions && db[i].questions.length > 0) {
+                                let qLen = db[i].questions.length; let chunkSize = 500; 
+                                for(let q = 0; q < qLen; q += chunkSize) {
+                                    let chunk = db[i].questions.slice(q, q + chunkSize); let updates = {};
+                                    for(let c = 0; c < chunk.length; c++) updates[q + c] = chunk[c];
+                                    await catRef.child('questions').update(updates);
+                                }
+                            }
+                            updateProgress(15 + Math.round(((i + 1) / totalCats) * 75));
+                        }
+                    }
+                } else {
+                    const idb = await initIndexedDB(); const tx = idb.transaction(STORE_NAME, "readwrite");
+                    tx.objectStore(STORE_NAME).put(db, activeServerKey); await new Promise(res => { tx.oncomplete = res; }); updateProgress(90);
+                }
+                updateProgress(100); setTimeout(() => { updateAllDropdowns(); updateCategoryCountBadge(); updateLiveInspectState(); updateDataSizeDisplay(); hideProgress(); }, 300);
+            } catch (e) { alert("خطأ أثناء الحفظ! (تأكد من الاتصال بالإنترنت)"); hideProgress(); }
+        }
+
+        // --- نظام التقييم بـ 7 نجوم ---
+        function renderStars(rating) {
+            const container = document.getElementById('star-rating-container');
+            if(activeCatIndex === -1) { container.style.display = 'none'; return; }
+            container.style.display = 'flex';
+            let html = '';
+            // من 1 لـ 7
+            for(let i=1; i<=7; i++) {
+                let color = i <= rating ? '#f59e0b' : 'var(--border-color)';
+                html += `<span class="star-btn" style="color: ${color};" onclick="rateQuestion(${i})">★</span>`;
+            }
+            container.innerHTML = html;
+        }
+
+        function rateQuestion(stars) {
+            if(activeCatIndex === -1 || activeQIndex === -1) return;
+            if(!db[activeCatIndex].ratings) db[activeCatIndex].ratings = {};
+            db[activeCatIndex].ratings[activeQIndex] = stars;
+            renderStars(stars);
+            silentSave(); 
+        }
+
+        // --- رسالة الترحيب والشاشة ---
+        function welcomeScreen() {
+            activeCatIndex = -1; activeQIndex = -1;
+            currentQuestionText = "أهلاً بيك يا هندسة! 🌙 اختار قسم أو دوس سؤال عشوائي.";
+            currentCategoryName = "توجيهات";
+            document.getElementById('main-question').innerText = currentQuestionText;
+            document.getElementById('current-question-category').innerText = "القسم: ترحيب";
+            renderStars(0);
+        }
+        
+        function resetApp() { 
+            historyDb = []; localStorage.setItem('my_pwa_history_db', JSON.stringify(historyDb));
+            cooldownDb = {}; localStorage.setItem('my_pwa_cooldown_db', JSON.stringify(cooldownDb));
+            welcomeScreen(); alert("رجعنا لنقطة البداية والسجل اتصفر! 🔄"); 
+        }
+
+        // --- دالة فحص الـ 24 ساعة ---
+        function isQuestionOnCooldown(qText) {
+            let now = Date.now();
+            if(cooldownDb[qText] && (now - cooldownDb[qText] < 24 * 60 * 60 * 1000)) return true;
+            return false;
+        }
+
+        // --- سحب الأسئلة والعدادات ---
+        function updateCategoryCountBadge() {
+            const selIdx = document.getElementById('header-category-select').value;
+            const badge = document.getElementById('total-count-badge');
+            if(selIdx === 'all') {
+                let t = 0; db.forEach(c => t += (c.questions ? c.questions.length : 0));
+                badge.innerText = `الكل: ${t} سؤال`;
+            } else if (selIdx === 'top_rated') {
+                let t = 0;
+                db.forEach(c => {
+                    if(c.ratings) Object.values(c.ratings).forEach(r => { if(r > 5) t++; });
+                });
+                badge.innerText = `المميزة: ${t} سؤال`;
+            } else {
+                const c = db[selIdx];
+                badge.innerText = `أسئلة القسم: ${c && c.questions ? c.questions.length : 0}`;
+            }
+        }
+
+        function changeActiveCategory() {
+            const selIdx = document.getElementById('header-category-select').value;
+            if(selIdx !== 'all' && selIdx !== 'top_rated') {
+                const cat = db[selIdx];
+                if(cat.password && cat.password.trim() !== "" && !unlockedCats[selIdx]) {
+                    const pass = prompt(`القسم "${cat.name}" مقفول برقم سري! 🔒\nأدخل الرقم السري لفتحه:`);
+                    if(pass === cat.password) {
+                        unlockedCats[selIdx] = true; alert("تم فتح القسم بنجاح! ✅");
+                        updateAllDropdowns(); document.getElementById('header-category-select').value = selIdx;
+                    } else {
+                        alert("الرقم السري غير صحيح! ❌"); document.getElementById('header-category-select').value = 'all'; 
+                        updateCategoryCountBadge(); return;
+                    }
+                }
+            }
+            updateCategoryCountBadge();
+            nextQuestion(false); 
+        }
+
+        function nextQuestion(randomAll = false) {
+            if (db.length === 0) return alert("السيرفر فاضي! ضيف أسئلة الأول.");
+            
+            // تنظيف سريع للذاكرة من الأسئلة اللي عدى عليها يوم
+            let nowTime = Date.now();
+            for(let k in cooldownDb) { if(nowTime - cooldownDb[k] >= 24 * 60 * 60 * 1000) delete cooldownDb[k]; }
+            localStorage.setItem('my_pwa_cooldown_db', JSON.stringify(cooldownDb));
+
+            let pool = [];
+            const selIdx = document.getElementById('header-category-select').value;
+            
+            // ==========================================
+            // التعديل السحري: استثناء قسم "المميزة" بالكامل من فلتر الـ 24 ساعة 
+            // ==========================================
+            if (selIdx === "top_rated" && !randomAll) {
+                db.forEach((c, idx) => {
+                    if(!c.password || c.password.trim() === "" || unlockedCats[idx]) {
+                        if (c.questions && c.ratings) {
+                            c.questions.forEach((q, qIdx) => {
+                                // شلنا !isQuestionOnCooldown(q) عشان يفتح في أي وقت
+                                if (c.ratings[qIdx] > 5) pool.push({q, n: c.name, cIdx: idx, qIdx: qIdx});
+                            });
+                        }
+                    }
+                });
+            } 
+            else if (randomAll || selIdx === "all") {
+                db.forEach((c, idx) => {
+                    if(!c.password || c.password.trim() === "" || unlockedCats[idx]) {
+                        c.questions?.forEach((q, qIdx) => {
+                            if(!isQuestionOnCooldown(q)) pool.push({q, n: c.name, cIdx: idx, qIdx: qIdx});
+                        });
+                    }
+                });
+            } else { 
+                const c = db[selIdx]; 
+                if(c && c.questions) c.questions.forEach((q, qIdx) => {
+                    if(!isQuestionOnCooldown(q)) pool.push({q, n: c.name, cIdx: selIdx, qIdx: qIdx});
+                }); 
+            }
+            
+            if (pool.length === 0) return alert("مفيش أسئلة متاحة للسحب دلوقتي! (ممكن الأقسام مقفولة، أو كل الأسئلة اتسحبت في آخر 24 ساعة ⏳)");
+            
+            const rand = pool[Math.floor(Math.random() * pool.length)];
+            displayQuestion(rand.q, rand.n, rand.cIdx, rand.qIdx);
+        }
+
+        function displayQuestion(text, category, cIdx, qIdx) {
+            currentQuestionText = text; currentCategoryName = category;
+            activeCatIndex = cIdx; activeQIndex = qIdx;
+            
+            document.getElementById('main-question').innerText = text;
+            document.getElementById('current-question-category').innerText = `سؤال من قسم: ${category}`;
+            
+            let currentRating = (db[cIdx] && db[cIdx].ratings && db[cIdx].ratings[qIdx]) ? db[cIdx].ratings[qIdx] : 0;
+            renderStars(currentRating);
+
+            if(text && !text.includes("أهلاً بيك")) {
+                cooldownDb[text] = Date.now();
+                localStorage.setItem('my_pwa_cooldown_db', JSON.stringify(cooldownDb));
+
+                if (historyDb.length === 0 || historyDb[0].text !== text) {
+                    historyDb.unshift({ text, category });
+                    if(historyDb.length > 50) historyDb.pop();
+                    localStorage.setItem('my_pwa_history_db', JSON.stringify(historyDb));
+                }
+            }
+        }
+
+        function openCustomDrawModal() {
+            const l = document.getElementById('custom-draw-list'); l.innerHTML = '';
+            if(db.length === 0) l.innerHTML = '<p style="text-align:center;">مفيش أقسام!</p>';
+            else db.forEach((c, i) => {
+                let isLocked = (c.password && c.password.trim() !== "");
+                let lockIcon = isLocked ? (unlockedCats[i] ? " 🔓" : " 🔒") : "";
+                l.innerHTML += `<label class="custom-draw-item"><input type="checkbox" class="custom-draw-chk" value="${i}"><span>${c.name} ${lockIcon} <small>(${c.questions?.length||0})</small></span></label>`;
+            });
+            document.getElementById('customDrawModal').style.display = 'flex';
+        }
+
+        function executeCustomDraw() {
+            const chks = document.querySelectorAll('.custom-draw-chk:checked');
+            if(chks.length === 0) return alert("اختار قسم واحد عالأقل يا هندسة عشان يسحب منه!");
+            
+            let nowTime = Date.now();
+            for(let k in cooldownDb) { if(nowTime - cooldownDb[k] >= 24 * 60 * 60 * 1000) delete cooldownDb[k]; }
+            localStorage.setItem('my_pwa_cooldown_db', JSON.stringify(cooldownDb));
+
+            let pool = [];
+            for(let i=0; i<chks.length; i++) {
+                let idx = chks[i].value; let c = db[idx];
+                if(c.password && c.password.trim()!=="" && !unlockedCats[idx]) {
+                    const pass = prompt(`القسم "${c.name}" مقفول! أدخل الباسورد لتضمينه في السحب:`);
+                    if(pass === c.password) { unlockedCats[idx] = true; alert("تم فك القفل! ✅"); openCustomDrawModal(); }
+                    else { alert("باسورد غلط للقسم ده! مش هيتسحب منه."); continue; }
+                }
+                if(c && c.questions) c.questions.forEach((q, qIdx) => {
+                    if(!isQuestionOnCooldown(q)) pool.push({q, n: c.name, cIdx: idx, qIdx: qIdx});
+                });
+            }
+            if (pool.length === 0) return alert("مفيش أسئلة اتسحبت! (ممكن الأقسام فاضية أو كلها اتسحبت في آخر 24 ساعة ⏳)");
+            const rand = pool[Math.floor(Math.random() * pool.length)];
+            displayQuestion(rand.q, rand.n, rand.cIdx, rand.qIdx);
+            document.getElementById('customDrawModal').style.display = 'none';
+        }
+
+        function openHistoryModal() {
+            const l = document.getElementById('history-list'); l.innerHTML = '';
+            if(historyDb.length === 0) l.innerHTML = '<p style="text-align:center; padding: 20px;">السجل فاضي لسه!</p>';
+            else historyDb.forEach((item, i) => l.innerHTML += `<div class="history-item"><div class="history-cat">☁️ ${item.category}</div><div>${i + 1}. ${item.text}</div></div>`);
+            document.getElementById('historyModal').style.display = 'flex';
+        }
+
+        function applyAppZoom() { document.getElementById('app-container').style.transform = `scale(${appZoomScale})`; document.getElementById('zoom-percent-text').innerText = `الرؤية: ${Math.round(appZoomScale * 100)}%`; }
+        function setAppZoom(step) { appZoomScale += step; if(appZoomScale < 0.6) appZoomScale = 0.6; if(appZoomScale > 1.6) appZoomScale = 1.6; localStorage.setItem('my_pwa_app_zoom', appZoomScale); applyAppZoom(); }
+        function resetAppZoom() { appZoomScale = 1.0; localStorage.setItem('my_pwa_app_zoom', appZoomScale); applyAppZoom(); }
+
+        function speakQuestion() { if (!currentQuestionText || currentQuestionText.includes("أهلاً بيك")) return; const u = new SpeechSynthesisUtterance(currentQuestionText); u.lang = 'ar-SA'; window.speechSynthesis.speak(u); }
+        function copyQuestion() { if (!currentQuestionText || currentQuestionText.includes("أهلاً بيك")) return; navigator.clipboard.writeText(currentQuestionText).then(() => alert("تم النسخ! 📋")); }
+        function generateAIPrompt() { navigator.clipboard.writeText(`عندي قسم "${currentCategoryName}" وفيه سؤال: "${currentQuestionText}". ممكن تولد لي 10 أسئلة جديدة بنفس الستايل؟`).then(() => alert("تم نسخ أمر AI بنجاح! 🪄")); }
+
+        function exportFullAppHTML() {
+            showProgress("جاري تجهيز التطبيق الشامل..."); updateProgress(30);
+            setTimeout(() => {
+                try {
+                    updateLiveInspectState(); 
+                    let htmlContent = document.documentElement.outerHTML;
+                    let blob = new Blob(["<!DOCTYPE html>\n<html lang='ar' dir='rtl'>\n" + htmlContent + "\n</html>"], { type: "text/html;charset=utf-8" });
+                    let a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = "MyPWA_App_Offline_Backup.html"; a.click(); URL.revokeObjectURL(a.href);
+                    updateProgress(100); hideProgress(); alert("تم تحميل نسخة كاملة من التطبيق! 🎉");
+                } catch(e) { alert("حصل خطأ أثناء التصدير الشامل!"); hideProgress(); }
+            }, 300);
+        }
+
+        function updateAllDropdowns() {
+            const selects = ['header-category-select', 'edit-cat-select'];
+            const sortList = document.getElementById('sortable-list'); const deleteList = document.getElementById('delete-list');
+            
+            selects.forEach(id => { 
+                const el = document.getElementById(id); 
+                if(el) { el.innerHTML = id === 'header-category-select' ? '<option value="all">كل الأقسام</option><option value="top_rated">⭐ المميزة (أعلى من 5)</option>' : ''; }
+            });
+            
+            sortList.innerHTML = ''; deleteList.innerHTML = '';
+            
+            db.forEach((cat, index) => {
+                let isLocked = (cat.password && cat.password.trim() !== "");
+                let displayLock = isLocked ? (unlockedCats[index] ? " 🔓" : " 🔒") : "";
+                let dropdownName = cat.name + displayLock;
+
+                selects.forEach(id => { const el = document.getElementById(id); if(el) el.add(new Option(dropdownName, index)); });
+                const qC = cat.questions ? cat.questions.length : 0;
+                sortList.innerHTML += `<div class="sortable-item" draggable="true" data-index="${index}"><span>☰ ${cat.name}${displayLock} (${qC})</span></div>`;
+                deleteList.innerHTML += `<div class="sortable-item"><span>☁️ ${cat.name}${displayLock}</span> <input type="checkbox" class="delete-chk" value="${index}"></div>`;
+            });
+            enableDragAndDrop(); updateCategoryCountBadge();
+        }
+
+        function closeAdminPanel() { document.getElementById('adminModal').style.display = 'none'; }
+        function parseQuestionsInput(t) { return !t ? [] : t.split('\n').map(q => q.trim()).filter(q => q.length > 0); }
+        
+        async function addNewCategory() {
+            const name = document.getElementById('new-cat-name').value.trim(); const pass = document.getElementById('new-cat-pass').value.trim();
+            if(!name) return alert("اكتب اسم القسم!"); 
+            db.push({ name: name, password: pass, questions: parseQuestionsInput(document.getElementById('new-cat-questions').value), ratings: {} });
+            await saveToStorage();
+            document.getElementById('new-cat-name').value = ''; document.getElementById('new-cat-pass').value = ''; document.getElementById('new-cat-questions').value = ''; alert(`تم إضافة القسم بنجاح!`);
+        }
+        async function renameCategory() {
+            const sel = document.getElementById('edit-cat-select'); const nn = document.getElementById('rename-cat-newname').value.trim();
+            if(!nn || sel.value === "") return; db[sel.value].name = nn; await saveToStorage(); document.getElementById('rename-cat-newname').value = ''; alert("تم التغيير!");
+        }
+        async function appendQuestions() {
+            const sel = document.getElementById('edit-cat-select'); const txt = document.getElementById('append-cat-questions').value;
+            if(sel.value === "" || !txt) return; db[sel.value].questions = (db[sel.value].questions || []).concat(parseQuestionsInput(txt));
+            await saveToStorage(); document.getElementById('append-cat-questions').value = ''; alert(`تم الدمج!`);
+        }
+        async function deleteSelectedCategories() {
+            const chks = document.querySelectorAll('.delete-chk:checked'); if(chks.length === 0) return;
+            if(confirm("تحذف الأقسام المحددة؟")) { Array.from(chks).map(c => parseInt(c.value)).sort((a,b) => b-a).forEach(i => db.splice(i, 1)); await saveToStorage(); alert("تم الحذف!"); }
+        }
+        async function deleteAllData() { if(confirm("⚠️ مسح السيرفر بالكامل؟؟ مش هيرجع!")) { db = []; await saveToStorage(); resetApp(); } }
+
+        function enableDragAndDrop() {
+            const items = document.querySelectorAll('.sortable-item'); let draggedItem = null;
+            items.forEach(item => {
+                item.addEventListener('dragstart', function() { draggedItem = this; setTimeout(() => this.classList.add('dragging'), 0); });
+                item.addEventListener('dragend', function() { this.classList.remove('dragging'); draggedItem = null; });
+                item.addEventListener('dragover', e => e.preventDefault());
+                item.addEventListener('dragenter', function(e) { e.preventDefault(); this.style.backgroundColor = 'var(--border-color)'; });
+                item.addEventListener('dragleave', function() { this.style.backgroundColor = 'var(--bg-dark)'; });
+                item.addEventListener('drop', function() {
+                    this.style.backgroundColor = 'var(--bg-dark)';
+                    if (draggedItem !== this) {
+                        let all = Array.from(document.querySelectorAll('.sortable-item'));
+                        if (all.indexOf(draggedItem) < all.indexOf(this)) this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                        else this.parentNode.insertBefore(draggedItem, this);
+                    }
+                });
+            });
+        }
+        async function saveCategoryOrder() {
+            let newDb = []; document.querySelectorAll('.sortable-item').forEach(item => newDb.push(db[parseInt(item.getAttribute('data-index'))]));
+            db = newDb; await saveToStorage(); alert("تم حفظ الترتيب! 💾");
+        }
+
+        function showProgress(t) { document.getElementById('progress-title').innerText = t; updateProgress(0); document.getElementById('progress-overlay').style.display = 'flex'; }
+        function updateProgress(p) { document.getElementById('progress-percent').innerText = p + "%"; document.getElementById('progress-bar').style.width = p + "%"; }
+        function hideProgress() { setTimeout(() => document.getElementById('progress-overlay').style.display = 'none', 600); }
+
+        function exportData() {
+            if (db.length === 0) return alert("السيرفر فاضي!"); showProgress("تصدير JSON...");
+            setTimeout(() => { updateProgress(50); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(db)], { type: "application/json" })); a.download = "PWA_Backup.json"; a.click(); updateProgress(100); hideProgress(); }, 100);
+        }
+        function importData(event) {
+            const file = event.target.files[0]; if (!file) return; showProgress("جاري التحليل...");
+            const r = new FileReader(); r.onprogress = e => { if (e.lengthComputable) updateProgress(Math.round((e.loaded/e.total)*60)); };
+            r.onload = e => {
+                updateProgress(70);
+                setTimeout(async () => {
+                    try {
+                        const imp = JSON.parse(e.target.result); let final = [];
+                        if (Array.isArray(imp)) final = (typeof imp[0] === 'string') ? [{ name: "مستورد", questions: imp }] : imp;
+                        else if (typeof imp === 'object' && imp !== null) { if (imp.categories) final = imp.categories; else for (let k in imp) { if (Array.isArray(imp[k])) final.push({ name: k, questions: imp[k] }); else if (Array.isArray(imp[k].questions)) final.push({ name: imp[k].name || k, password: imp[k].password||"", questions: imp[k].questions, ratings: imp[k].ratings||{} }); } }
+                        if (final.length > 0) {
+                            updateProgress(85); 
+                            final.forEach(c => { c.questions = c.questions ? c.questions : []; if(!c.name) c.name = "بدون اسم"; if(!c.ratings) c.ratings = {}; });
+                            db = final; await saveToStorage(); alert("تم الاستيراد بنجاح بجميع الأسئلة (بدون حذف المكرر)! ☁️"); resetApp();
+                        } else alert("صيغة غير صحيحة!");
+                    } catch (err) { alert("خطأ بالملف!"); }
+                    hideProgress(); closeAdminPanel(); event.target.value = ''; 
+                }, 200);
+            }; r.readAsText(file);
+        }
+    </script>
+</body>
+</html>
