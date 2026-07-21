@@ -125,13 +125,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1784666920807">
-    <meta name="theme-color" content="#322339">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784666920807">
+    <link rel="manifest" href="./manifest.json?v=v1784669380476">
+    <meta name="theme-color" content="#ae84aa">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784669380476">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1784666920807')
+          navigator.serviceWorker.register('./sw.js?v=v1784669380476')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -197,22 +197,22 @@
             <button onclick="setAppZoom(-0.05)" title="تصغير">➖ تصغير</button>
         </div>
 
-    </div> <!-- نهاية app-container -->
+        <!-- تم نقل الفوتر داخل حاوية التطبيق لمنع التعارض (Overlap) عند استخدام التكبير/الزووم -->
+        <footer style="margin-top: 50px; padding-bottom: 30px; text-align: center; z-index: 10; width: 100%;">
+            <p style="font-size: 22px; font-weight: bold; color: var(--text-main);">© 2026 - 2027 ENG OMAR All Rights Reserved.</p>
+            <p style="color: var(--text-muted); margin: 10px 0; font-size: 18px;">اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى سَيِّدِنَا مُحَمَّدٍ ﷺ</p>
+            
+            <div style="margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                <a href="https://t.me/livein2027" target="_blank" style="display: inline-block; background-color: #0088cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; border: 2px solid #4caac9; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s ease;">
+                    💬 تواصل مع المبرمج
+                </a>
+                <a href="https://omarcomweb.github.io/17topics/" target="_blank" style="display: inline-block; background-color: var(--btn-copy); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; border: 2px solid var(--accent-glow); box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s ease;">
+                    🌐 موقع 1
+                </a>
+            </div>
+        </footer>
 
-    <!-- الفوتر الشامل اللي إنت طلبته -->
-    <footer style="margin-top: 50px; padding-bottom: 30px; text-align: center; z-index: 10; width: 100%;">
-        <p style="font-size: 22px; font-weight: bold; color: var(--text-main);">© 2026 - 2027 ENG OMAR All Rights Reserved.</p>
-        <p style="color: var(--text-muted); margin: 10px 0; font-size: 18px;">اللَّهُمَّ صَلِّ وَسَلِّمْ عَلَى سَيِّدِنَا مُحَمَّدٍ ﷺ</p>
-        
-        <div style="margin-top: 20px; display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;">
-            <a href="https://t.me/livein2027" target="_blank" style="display: inline-block; background-color: #0088cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; border: 2px solid #4caac9; box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s ease;">
-                💬 تواصل مع المبرمج
-            </a>
-            <a href="https://mywebsite17.github.io/-./" target="_blank" style="display: inline-block; background-color: var(--btn-copy); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-size: 18px; font-weight: bold; border: 2px solid var(--accent-glow); box-shadow: 0 4px 10px rgba(0,0,0,0.5); transition: all 0.3s ease;">
-                🌐 موقع 1
-            </a>
-        </div>
-    </footer>
+    </div> <!-- نهاية app-container -->
 
     <!-- ================= 1. شاشة التحميل ================= -->
     <div class="modal-overlay" id="progress-overlay" style="z-index: 9999;">
@@ -349,8 +349,11 @@
 
         let unlockedCats = {}; // الأقسام المفتوحة بباسورد
         
-        let currentCSSId = localStorage.getItem('my_pwa_css') || 'css_0';
+        // التعديل: تعيين مسطح حاد بنفسجي (css_6) كافتراضي بدل css_0
+        let currentCSSId = localStorage.getItem('my_pwa_css') || 'css_6';
         let appZoomScale = parseFloat(localStorage.getItem('my_pwa_app_zoom')) || 1.0; 
+        
+        // التعديل: سيرفر الفايربيز كافتراضي
         let activeServerKey = localStorage.getItem('active_server_key') || 'firebase_backkeenddd'; 
         
         let savedFirebaseServers = JSON.parse(localStorage.getItem('saved_firebase_servers') || '{}');
