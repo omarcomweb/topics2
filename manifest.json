@@ -2,20 +2,20 @@
   "name": "نقاشات",
   "short_name": "نقاشات",
   "description": "نقاشات",
-  "start_url": "./index.html?v=v1784659332226",
+  "start_url": "./index.html?v=v1784660219011",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#ffffff",
-  "theme_color": "#950797",
+  "theme_color": "#9473bf",
   "icons": [
     {
-      "src": "./icon-192.png?v=v1784659332226",
+      "src": "./icon-192.png?v=v1784660219011",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "./icon-512.png?v=v1784659332226",
+      "src": "./icon-512.png?v=v1784660219011",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
