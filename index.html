@@ -125,13 +125,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1784661042428">
-    <meta name="theme-color" content="#a68ca2">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784661042428">
+    <link rel="manifest" href="./manifest.json?v=v1784666920807">
+    <meta name="theme-color" content="#322339">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1784666920807">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1784661042428')
+          navigator.serviceWorker.register('./sw.js?v=v1784666920807')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -351,7 +351,7 @@
         
         let currentCSSId = localStorage.getItem('my_pwa_css') || 'css_0';
         let appZoomScale = parseFloat(localStorage.getItem('my_pwa_app_zoom')) || 1.0; 
-        let activeServerKey = localStorage.getItem('active_server_key') || 'my_pwa_server_data_main'; 
+        let activeServerKey = localStorage.getItem('active_server_key') || 'firebase_backkeenddd'; 
         
         let savedFirebaseServers = JSON.parse(localStorage.getItem('saved_firebase_servers') || '{}');
         const defaultFirebaseConfig = {
@@ -429,7 +429,7 @@
             try {
                 const injectedData = JSON.parse(injectedDataRaw);
                 if (injectedData.db && injectedData.db.length > 0 && db.length === 0) {
-                    db = injectedData.db; activeServerKey = injectedData.server || 'my_pwa_server_data_main';
+                    db = injectedData.db; activeServerKey = injectedData.server || 'firebase_backkeenddd';
                     if (injectedData.css) { currentCSSId = injectedData.css; document.getElementById('css-select').value = currentCSSId; document.documentElement.setAttribute('data-css', currentCSSId); }
                     saveToStorage(); 
                 }
